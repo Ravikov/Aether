@@ -5,14 +5,14 @@ from common import *
 class touch:
 
     def __init__(self, url, key, model, msg, temperature=0, max_tokens=2048):
-        self.url   = url
-        self.key   = key
-        self.model = model
+        self.url         = url
+        self.key         = key
+        self.model       = model
         self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.msg   = msg
-        self.resultdict = None
-        self.reply = ''
+        self.max_tokens  = max_tokens
+        self.msg         = msg
+        self.resultdict  = None
+        self.reply       = ''
 
     def request(self):
         
@@ -20,7 +20,7 @@ class touch:
             api_key=self.key,
             base_url=self.url
             )
-        
+
         resp = client.chat.completions.create(
             model=self.model,
             messages=self.msg,

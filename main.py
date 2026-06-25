@@ -10,15 +10,18 @@ change log:
 
 """
 
-from core.manager import manager
-from common import *
-
-distill_manager = manager()
+import common
 
 distill_data   = input("请输入蒸馏原料\n>>>")
 distill_name   = input("请输入蒸馏原料中蒸馏对象的昵称\n>>>")
 score_standard = input("请输入分数要求\n>>>")
 
+common.distill_data['text'] = distill_data
+common.distill_name         = distill_name
+common.score_standard       = int(score_standard)
+
+from core.manager import manager
+distill_manager = manager()
 try:
     distill_manager.start()
 except KeyboardInterrupt:

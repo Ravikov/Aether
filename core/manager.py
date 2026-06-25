@@ -1,26 +1,18 @@
 import ast
 import json
-import re
 
-from common import *
+import common
 from core.llm_api import touch
 
 
 def _parse_reply(text):
-    # 自动找到第一个 {...} 块，忽略前后多余文字
-    m = re.search(r'\{.*\}', text, re.DOTALL)
-    if m:
-        text = m.group()
-    try:
-        return ast.literal_eval(text)
-    except (ValueError, SyntaxError):
-        return json.loads(text)
+    return ast.literal_eval(text)
 
 
 class manager:
 
     def __init__(self):
-        with open(config_path,'r',encoding='utf-8') as f:
+        with open(common.config_path,'r',encoding='utf-8') as f:
             self.configdict   = json.load(f)
         self.prompt           = ''     #默认提示词为空
         self.loop             = True   #循环控制
@@ -42,23 +34,23 @@ class manager:
         reply_format = """
 {
 'prompt':提示词内容,
-'chat_test':以列表形式给出%d句话用于对提示词进行审查测试,测试用句应具有代表性、有效性,贴近人类交流语言,
-            例如['吃饭没?','你周末有事吗?','那啥,跟你说个事','你是人机吧',......]等各种类似语句,不要直接用示例,也不要用蒸馏原料中的语句,
-            有时若蒸馏对象语言带有方言特色,你的测试用句里也可以适当模仿
+'chat_test':以列表形式给出%d句话用于对提示词进行审查测试,测试用句应贴近人类交流语言,就像人类日常对话一样即可
+            例如['吃饭没?','你周末有事吗?','那啥,跟你说个事',......]等各种类似语句,不要直接用示例,也不要用蒸馏原料中的语句,
+            有时若蒸馏对象语言带有方言特色,你的测试用句里也可以适当模仿,若没有明显的方言特色请你严格按照普通话输出
 }
-""" % test_time
+""" % common.test_time
         
-        self.toucher.temperature = 0
+        self.toucher.temperature = 0.6
         self.toucher.msg = [{'role':'system','content':f"""
 请按照用户所给的提示词要求或蒸馏对象的聊天记录输出合适的提示词(没有原料就直接创造一个人格),以达到蒸馏的目的
-提示词应遵守一定的格式,严禁出现格式要求以外的任何回复,比如把性格、说话方式等等项目分类列出,以md形式输出;
+提示词应遵守一定的格式,严禁出现格式要求以外的任何回复,比如把性格、说话方式等等项目分类列出,提示词字符串内容以md形式输出;
 必须严格遵守的回复格式(json):{reply_format};
-蒸馏对象:{distill_name}(留空则忽略);
+蒸馏对象:{common.distill_name}(留空则忽略);
 上一轮得分(百分制):{self.score};
 上一轮审查修改建议:{self.suggest};
 当前提示词:{self.prompt};
 迭代次数:{self.loop_n}
-"""}]+[{'role':'user','content':f"以下是蒸馏原料:{distill_data['text']}"}]
+"""}]+[{'role':'user','content':f"以下是蒸馏原料:{common.distill_data['text']}"}]
 
         self.toucher.request()
         parsed = _parse_reply(self.toucher.reply)
@@ -66,7 +58,7 @@ class manager:
         self.chat_test_list = parsed['chat_test']
         print(f"已生成第{self.loop_n}版提示词")
         self.loop_n += 1
-        with open(prompt_file,'w',encoding='utf-8') as f:
+        with open(common.prompt_file,'w',encoding='utf-8') as f:
             f.write(self.prompt)
 
     # 模拟对话
@@ -76,13 +68,13 @@ class manager:
         for i in self.chat_test_list:
             print(f"进行交流测试,msg: {i}")
             self.toucher.msg = [
-                {'role':'system','content':self.prompt},
-                {'role':'user','content':i}                
+                {'role':'system','content':self.prompt+'\njson格式:{"msg":输出字符串}'},
+                {'role':'user','content':i}
                 ]
             self.toucher.request()
-            result = self.toucher.reply
+            result = _parse_reply(self.toucher.reply)
             self.test_result_list.append(
-                f"用户:{i}\nAI:{result}"
+                f"用户:{i}\nAI:{result['msg']}"
                 )
             print(f"本轮测试结束,回复: {result}")
 
@@ -106,7 +98,7 @@ class manager:
 }
 4.除非提示词已经达到优秀标准,否则你需要压低分数,给予足够的优化空间
 5.这是用户要求的分数:%d,若已完好便可使分数达到要求,程序将结束
-""" % score_standard },
+""" % common.score_standard },
         {'role':'user','content':f"对话记录:{self.test_result_list}"}
         ]
         
@@ -123,7 +115,7 @@ class manager:
                 风格近似度得分:{self.checkend['style_similar']}
                 修改建议:{self.suggest}
 """)
-        if self.score >= score_standard:
+        if self.score >= common.score_standard:
             print('分数达到要求标准,循环退出,可在 /out/prompt.md 内查看提示词')
             self.loop = False
 
